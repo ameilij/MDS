@@ -63,72 +63,44 @@ def get_class_average_horizontal_density(image_set, class_set, target):
 
     return(np.mean(class_average_horizontal_density_list), np.std(class_average_horizontal_density_list), counter_evaluation)
 
-# SCRATCH PAD... PLEASE ELIMINATE IN FINAL PROGRAM
+def classifier(image):
+    """Simple classification model that analyzes if horizontal density of an image
+    belongs to that trained for zeroes or ones. Function assumes that information in
+    image is either one or zero, not any other number.
 
-def transform_to_image_matrix(dataframe_iloc):
-    """Get an image class block and return 28 x 28 matrix for analysis
-
-    :parameter
-    dataframe_iloc
-
-    :return
-    temp
-    """
-    temp = dataframe_iloc.to_list()
-    temp: ndarray = np.reshape(temp, (28, 28))
-    return temp
-
-def print_horizontal_average(some_image_matrix):
-    """Print the average pixel value for the 28 rows in an image matrix
-    :parameter
-    some_image_matrix
-
-    :return
-
-    """
-    row_mean_counter = []
-    i = 0
-    for rows in some_image_matrix:
-        print("mean for row", i, " is ", np.mean(rows))
-        row_mean_counter.append(np.mean(rows))
-        i = i + 1
-    print(">>> FINAL MEAN: ", np.mean(row_mean_counter))
-    return np.mean(row_mean_counter)
-
-
-
-
-def calculate_horizontal_average(some_image_matrix):
-    """Calculate the average pixel value for the 28 rows in an image matrix
-    :parameter
-    some_image_matrix
-
-    :return
-
-    """
-    row_mean_counter = []
-    for rows in some_image_matrix:
-        row_mean_counter.append(np.mean(rows))
-    return np.mean(row_mean_counter)
-
-def test_image(image, real_class, image_id):
-    """Automated test of images for classification
     :parameter image
-    :parameter real_class
-    :parameter image_id
 
-    :return
-
+    :return prediction
     """
-    print("automated test for image in location: ", image_id)
-    print("-----------------------------------------")
-    print("value of real image is: ", real_class)
-    test_image = transform_to_image_matrix(image)
 
-    print("average row value for 28 rows is: ", calculate_horizontal_average(test_image))
+    # Model parameters for ZERO classification
+    zero_mean = 0.24460545843717754
+    zero_sd = 0.0429571657861942
+    zero_ub = zero_mean + (3 * zero_sd)
+    zero_lb = zero_mean - (3 * zero_sd)
 
+    # Model parameters for ONE classification
+    one_mean = 0.1095654683099595
+    one_sd = 0.025619148318372687
+    one_ub = one_mean + (3 * one_sd)
+    one_lb = one_mean - (3 * one_sd)
 
+    temp = calculate_horizontal_density(image)
+    prediction = 9
+    if(temp >= zero_lb and temp < zero_ub): prediction = 0
+    if(temp >= one_lb and temp < one_ub): prediction = 1
+    return prediction
 
+def make_contingency_table(y, y_hat):
+    tp, fn, fp, tn = 0,0,0,0
+    for i in range(1, len(y)):
+        if(y[i] == 1 and y_hat[i] == 1): tp = tp + 1
+        if(y[i] == 0 and y_hat[i] == 1): fp = fp + 1
+        if(y[i] == 1 and y_hat[i] == 0): fn = fn + 1
+        if(y[i] == 0 and y_hat[i] == 0): tn = tn + 1
+    return(tp, fn, fp, tn)
+
+# Enter main section
 def main():
     # Open MNIST dataset with pixel files and class files.
     # The data is stored as parquet files
@@ -151,6 +123,23 @@ def main():
     print("Class Average Horizontal Density: ", results_2[0])
     print("Class SD Horizontal Density: ", results_2[1])
     print("Class Occurrences: ", results_2[2], "\n")
+
+    # Create a test of all cases with 1 and 0
+    pred_value = []
+    real_value = []
+    for i in range(1, len(image_class)):
+        if (image_class.iloc[i] == 1 or image_class.iloc[i] == 0):
+            real_value.append(image_class[i])
+            temp = transform_clean_format(image_set.iloc[i])
+            temp = classifier(temp)
+            pred_value.append(temp)
+
+    bar = make_contingency_table(real_value, pred_value)
+    dat = {'Positive' : [bar[0], bar[2]],
+           'Negative' : [bar[1], bar[3]]}
+    df = pd.DataFrame(dat, columns = ['Positive','Negative'], index=['Positive','Negative'])
+    print("Contingency Table \n")
+    print (df)
 
 if __name__ == "__main__":
     main()
