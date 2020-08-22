@@ -1,0 +1,81 @@
+---
+title: "Ejercicios de R"
+author: "Ariel E. Meilij"
+date: "8/21/2020"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Herramientas del Cientifico de Datos
+
+## Caso Práctico 1
+Para el primer caso práctico de __R__ se pide lo siguiente.
+
+1. Crea un vector con la secuencia 1, 2, 3, 4, 5 de longitud 10.
+2. Crea un array de dos dimensiones, de 10 elementos cada una, con los 20 primeros números pares del 0 al 40.
+3. Crea una muestra de números aleatorios del 1 a 100 con repetición de longitud 10.
+4. Crea un nuevo vector que sea el resultado de la suma fila a fila de cada dimensión del array.
+5. Finalmente, crea un dataframe con todas las estructuras de datos creadas anteriormente y muestra el resumen estadístico del dataframe.
+
+## Solución
+Crea un vector con la secuencia 1, 2, 3, 4, 5 de longitud 10. La mejor forma de hacer esto es con un vector que esté conformado por la repetición de dos secuencias del 1 al 5. 
+```{r primer_problema}
+vector <- c(rep(1:5, 2))
+vector
+```
+
+El segundo problema es crear un array de dos dimensiones, de 10 elementos cada una, con los 20 primeros números pares del 0 al 40. Para este problema es mejor generar la secuencia de los 20 primeros números del 0 al 40. Luego utilizar dos vectores para poblar la matriz. 
+
+```{r create_array}
+data <- seq(0,40,2)
+matriz <- array(data = data, dim = c(2,10))
+matriz
+```
+
+El tercer problema trae aparejado la generación de números aleatorios. Se trata de crear una muestra de números aleatorios del 1 a 100 con repetición de longitud 10. Para esto utilizaremos el comando `runif` que nos facilita devolver un vector con exactamente los números de puntos de datos requeridos y las cotas.
+
+```{r create_random_sample}
+muestra <- runif(10, min=1, max=101)
+muestra
+
+# Solo enteros
+otra_muestra <- floor(runif(10, min = 1, max = 101))
+otra_muestra
+```
+
+El problema número cuatro se relaciona con el número dos. Se debe crear  un nuevo vector que sea el resultado de la suma fila a fila de cada dimensión del array. Para tal fin lo ideal es tener un comando que sume filas. Tal comando existe en R y se llama `rowSums`. 
+
+```{r sumar_filas}
+vector_sumas <- rowSums(matriz, dims = 1)
+vector_sumas
+
+# Para disipar la duda, sumemos las columnas que hace mas sentido
+filas_sumas <- colSums(matriz)
+filas_sumas
+```
+
+Finalmente, debemos crear un dataframe con todas las estructuras de datos creadas anteriormente y muestra el resumen estadístico del dataframe.
+
+```{r create_dataframe}
+# El dataframe va a tener cuatro elementos
+# 1. vector
+# 2. matriz
+# 3. muestra
+# 4. vector_sumas o filas_sumas
+
+df <- data.frame(vector, matriz[1,], matriz[2,], otra_muestra, filas_sumas)
+df
+```
+Ahora solo tenemos que ver el resumen estadistico. 
+
+```{r}
+summary(df)
+```
+
+
