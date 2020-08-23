@@ -1,0 +1,130 @@
+---
+title: "LAS HERRAMIENTAS DEL CIENTIFICO DE DATOS"
+author: "Ariel E. Meilij"
+date: "8/22/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# UNIDAD 5 CASO PRACTICO 2
+
+## Introducción
+Mediante los siguientes datos, sobre los que se simulará información aleatoria para los años comprendidos entre 2016 y 2020:
+
+```{r}
+vec.1 <- sample(1:100, 100, replace = T)
+vec.2 <- sample(50:150, 100, replace = T)
+vec.3 <- rep(c("2020", "2019", "2018", "2017", "2016"), 20)
+```
+
+Se pide lo siguiente:
+
+1. Crea una matriz de dos columnas con los vectores “vec.1” y “vec.2”.
+2. Crea un nuevo vector que sea la suma de las filas de la matriz al cuadrado.
+3. Crea un dataframe con todos los vectores con las siguientes columnas> vec.1: Low, vec.2: High, Vector del apartado 2: Volume, vec.3: Year (tiene que ser una variable factor).
+4. Muestra el resumen estadístico del dataframe.
+5. Muestra la estructura de variables del dataframe.
+6. Asigna valor nulo (NA) a todos los valores de la columna “Low” por debajo de 20.
+7. Muestra el número de valores nulos de cada columna.
+8. Muestra la media de la columna “Volume” en función de cada factor de “Year”.
+9. Asigna a cada valor “NaN” la media de la columna “Low” (pista: investigar en la función “mean” cómo trabajar con nulos).
+10. Obtén un subconjunto de los datos que sean todos los valores de 2020 y que tengan valor superior a 90 en la columna “High”.
+11. Investiga sobre la función “write.csv” y crea un archivo CSV con nombre “2020_Values.csv”.
+
+## Solución
+Veamos cada uno de los pasos para ir completando el ejercicio. Comencemos por el primero, cear una matriz de dos columnas con los vectores `vec.1` y `vec.2`.
+
+```{r}
+matriz <- array(c(vec.1, vec.2), dim = c(2, 100))
+```
+El segundo paso solicita crear un nuevo vector que sea la suma de las filas de la matriz al cuadrado.
+
+```{r}
+vec.4 <- (colSums(matriz))^2
+```
+
+El tercer paso es más complejo y solicita la creación de un dataframe con todos los vectores con las siguientes columnas> vec.1: Low, vec.2: High, Vector del apartado 2: Volume, vec.3: Year (tiene que ser una variable factor).
+
+```{r}
+df <- data.frame(vec.1, vec.2, vec.4, factor(vec.3))
+names(df) <- c("Low", "High", "Volume", "FY")
+```
+
+El cuarto paso es relativamente sencillo, donde solo debemos mostrar el resumen estadístico. 
+
+```{r}
+summary(df)
+```
+
+El paso número cinco involucra mostrar la estructura de variables del dataframe. Esto se logra con la función `str`.
+
+```{r}
+str(df)
+```
+
+Para la siguiente transformación, hay que asignar valor nulo (NA) a todos los valores de la columna __Low__ por debajo de 20. La mejor forma de hacer esto es utilizando _subsets_ dentro del índice, es un poco enredado pero funciona mucho mejor que en Python.
+
+```{r}
+df$Low[df$Low < 20 ] <- NA 
+```
+
+La pregunta número siete es sobre mostrar el número de valores nulos de cada columna. Hay varias formas de resolver esto, pero encontramos una solución en el internet de Cherukuri Sindhu en el sitio EDUREKA.COM. 
+
+Se trata de la función de bucle `lapply` que es una función que automatiza una función sobre una secuencia de valores, en este caso, optimizada a listas. La función original de Cherukuri es:
+
+`lapply(data_frame,function(x) { length(which(is.na(x)))})`
+
+Pero nosotros la vamos a adaptar a un __dataframe__ con la función `apply` en vez. Solo hay que agregar el número 2, para que se entienda que se aplica a las filas y no las columnas. Lo que se automatiza es una función anónima __x__ que llama a la cuenta a través de __length__ de aquellos valores que son nulos con __is.na()__. 
+
+```{r}
+# El siguiente codigo es de Cherukuri Sindhu
+# https://www.edureka.co/community/50920/code-snippet-find-number-null-values-each-column-dataframe
+apply(df, 2, function(x) { length(which(is.na(x)))})
+```
+
+Mostrar la media de la columna __Volume__ en función de cada factor de __Year__ involucra agrupar por año y luego calcular el valor promedio de volumen. En este punto de la materia no hemos visto la libreria __TidyVerse__ para agrupar por lo que busquemos una forma manual de hacerlo
+
+```{r}
+# crear una lista de años extrayendo valores únicos
+lista_FY <- unique(df$FY)
+
+
+for(valores in lista_FY){
+  print(paste("FY - ", valores, " : ", mean(df$Volume[df$FY == valores])))  
+}
+  
+
+```
+
+Una forma sencilla de revisar si todo está bien es buscando un valor a mano:
+
+```{r}
+summary(df$Volume[df$FY == 2016])
+```
+
+En un apartado anterior, habíamos cambiado los valores de __LOW__ menor de 20 a __NA__. Ahora debemos asignar a cada valor _NaN_ la media de la columna __Low__ (pista: investigar en la función `mean` cómo trabajar con nulos).
+
+```{r}
+df$Low[is.na(df$Low)] <- mean(df$Low, na.rm = TRUE)
+summary(df$Low)
+```
+
+En el siguiente problema utilizaremos subconjuntos. Debemos crear un subconjunto de los datos que sean todos los valores de 2020 y que tengan valor superior a 90 en la columna __High__. La función `subset()` no es tan poderosa, pero para este caso es más que suficiente para obtener filtros múltiples. 
+
+```{r}
+# Fuente original de la solucion https://www.statmethods.net/management/subset.html 
+df2 <- subset(df, FY == 2020 & High > 90)
+tail(df2)
+```
+El último ejercicio pide investigar sobre la función `write.csv` y crea un archivo CSV con nombre `2020_Values.csv`. La función no es muy compleja, y mientras estemos seguros del PATH correcto, se resume en los siguiente:
+
+```{r}
+# Solucion de https://datatofish.com/export-dataframe-to-csv-in-r/
+write.csv(df2,"2020_Values.csv", row.names = FALSE)
+```
+
