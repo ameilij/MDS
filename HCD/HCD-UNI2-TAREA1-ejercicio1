@@ -1,0 +1,46 @@
+# Python Ejercicio 1
+
+# Escribir una función que reciba una secuencia de números (puede ser lista
+# o tupla y los números pueden ser enteros o decimales) y devuelva la cantidad
+# de números, el valor máximo, el mínimo y la media.
+
+def get_list(someList):
+    """
+    Main function to get a list, and return list lenght, max value, min value, 
+    and mean.
+
+    Parameters
+    ----------
+    someList : Some list could be any list, tuple or list, of numbers.
+    No fancy validation here!
+
+    Returns
+    -------
+    numbers_qty: quantity of numbers
+    list_max: maxumium value of list
+    list_min: minimum value of list
+    list_mean: mean of list.
+
+    """
+    
+    numbers_qty = len(someList)
+    list_max = max(someList)
+    list_min = min(someList)
+    list_mean = sum(someList) / numbers_qty
+    
+    return numbers_qty, list_max, list_min, list_mean
+
+if __name__ == '__main__':
+   
+    # test with list
+    test_list = [1,2,3,4,5,6.0,9.5]
+    print(get_list(test_list))
+    
+    test_tuple = (6,8,12,1,17,45)
+    print(get_list(test_tuple))
+    
+    print ("The end.")
+    
+    
+    
+    
