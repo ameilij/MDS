@@ -1,0 +1,227 @@
+---
+title: "Caso Práctico Final R"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::material:
+    highlight: kate
+---
+
+
+```{r setup, echo=FALSE, cache=FALSE, warning=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+# A. EL PROBLEMA
+Se dispone del siguiente archivo CSV con información sobre los Air Bnb de la ciudad de Milán en 2019. En el dataset, solamente aparecen apartamentos completos.
+
+Con esta información, alumno debe realizar los siguientes procesos de analítica:
+
+1. Cargar el archivo “Airbnb_Milan.csv” como dataframe.
+2. Crear un nuevo dataframe que contenga únicamente las siguientes columnas:
+  - `host_is_superhost`
+  - `host_identity_verified`
+  - `bathrooms`
+  - `bedrooms`
+  - `daily_price`
+  - `security_deposit`
+  - `minimum_nights`
+  - `number_of_reviews`
+  - `review_scores_rating`
+3. Cambiar los factores de la variable `host_is_superhost` de 0, 1 a: `SI` y, `NO`. (investigar la función recode).
+4. Cambiar los factores de la variable `host_identity_verified` de 0, 1 a: `VERIFICA` y `NO VERIFICA`.
+5. Mostrar un resumen estadístico de los datos.
+6. Filtrar el dataset por apartamentos cuyo mínimo de noches sea igual o menor que siete.
+7. ¿Cuál es el precio medio por día de una habitación en función de si el anfitrión tiene verificado o no su perfil?
+8. Quién tiene más número de reseñas, ¿un super host o no super host?
+9. Sobre la estadística anterior ¿quién tiene la puntuación media más alta?
+10. Crea un vector categórico llamado `CATEGORÍA`, en función de que, si para la puntuación de las reseñas tiene de 0 a 49, sea `NO ACONSEJABLE`; de 50 a 75 sea `ESTÁNDAR`; y de 76 a 100 sea `TOP`.
+11. Mostrar las frecuencias de la variable `CATEGORÍA`.
+12. Obtener el histograma del precio por día.
+13. Estudiar la relación entre los dormitorios y baños de forma gráfica.
+14. Mostrar un histograma del número de reseñas en función de si es un usuario verificado o no.
+15. Mostrar un histograma por cada valor de `CATEGORÍA` en el que se enseñe la cuantía del depósito de seguridad en función de si el anfitrión es super host o no.
+
+# B. SOLUCIÓN
+
+## Carga del Juego de Datos
+Comencemos con la carga del archivo como un dataframe:
+
+```{r cargar_datos, warning=FALSE, message=FALSE}
+library(tidyverse)
+temp <- read.csv("Airbnb_Milan.csv") 
+summary(temp$X)
+```
+
+## Crear Dataframe Reducido
+
+Este archivo es muy completo en cuanto a estructura, pero para el resto del trabajo no es necesario mantener la mayoría de los campos. 
+
+```{r reducir_datos}
+milan <- temp[c("host_is_superhost", "host_identity_verified", "bathrooms", "bedrooms", "daily_price", "security_deposit", "minimum_nights", "number_of_reviews", "review_scores_rating")]
+rm(temp)
+summary(milan$bathrooms)
+```
+
+## Modificando Factores de la Variable `host_is_superhost`
+
+Ahora que tenemos un juego de datos reducido, podemos comenzar nuestra tarea de modificarlo a nuestra conveniencia. Comenzaremos por cambiar los factores de la variable `host_is_superhost` de 0, 1 a `SI` y, `NO` con la ayuda de la función `recode()`.
+
+```{r recode_host_is_superhost}
+# Codigo de recode https://dplyr.tidyverse.org/reference/recode.html
+milan$host_is_superhost <- factor(recode(milan$host_is_superhost, `0` = "NO", `1` = "SI"), labels = c("SI", "NO"))
+c <- table(milan$host_is_superhost)
+qplot(data = milan, x =host_is_superhost, geom = "bar")
+```
+
+## Modificando la Variable `host_identity_verified`
+
+Procederemos a hacer otra modificación, esta vez cambiar los factores de la variable `host_identity_verified` de 0, 1 a: `VERIFICA` y `NO VERIFICA`.
+
+```{r modificar_host_identity_verified}
+milan$host_identity_verified <- recode(milan$host_identity_verified, `0` = "NO VERIFICA", `1` = "VERIFICA")
+c <- table(milan$host_identity_verified)
+# barplot(c, main="Distribucion Variable host_identity_verified", horiz=TRUE, names.arg=c("NO VERIFICA", "VERIFICA"))
+qplot(data = milan, x = host_identity_verified, geom = "bar")
+
+```
+
+## Resumen Estadístico
+
+Antes de proseguir estudiando el juego de datos, veamos un resumen estadístico. 
+
+```{r resumen_etsadistico}
+summary(milan)
+```
+
+## Aplicando Filtros al Número de Noches Mínimo
+
+Probemos filtrar el juego de datos por apartamentos cuyo mínimo de noches sea igual o menor que siete. Para este ejercicio vamos a utilizar el `TidyVerse` de **Hadley Wickham**. 
+
+```{r filtrar_aptos}
+aptos <- filter(milan, minimum_nights <= 7)
+qplot(aptos$minimum_nights)
+
+```
+
+## Precio Promedio de Acuerdo al Perfil del Anfitrión
+
+Nuestra próxima pregunta es un poco más intricada. ¿Cuál es el precio medio por día de una habitación en función de si el anfitrión tiene verificado o no su perfil?
+
+```{r}
+# Precio promedio para cuartos verificados
+mean(subset(milan, host_identity_verified == "VERIFICA")$daily_price)
+
+# Precio promedio para cuartos no verificados
+mean(subset(milan, host_identity_verified == "NO VERIFICA")$daily_price)
+
+```
+Los precios son casi idénticos, por lo que vamos a hacer un pequeño test para ver si no nos equivocamos en el método de subconjuntos. 
+
+```{r}
+dat1 <- subset(milan, host_identity_verified == "VERIFICA")
+dat2 <- subset(milan, host_identity_verified == "NO VERIFICA")
+qplot(data = milan, x = host_identity_verified, y = daily_price, geom = "boxplot")
+```
+Los promedios son casi idénticos aunque los juegos de datos no tengan exactamente la misma cantidad de datos. 
+
+## Reseñas de Acuerdo a Nivel de Anfitrión
+Quién tiene más número de reseñas, ¿un super host o no super host? Usemos las funciones de `group_by` y el encadenamiento de comandos para esto. 
+
+```{r}
+milan %>% 
+  group_by(host_is_superhost) %>%
+  summarise(reviews = sum(number_of_reviews))
+```
+Como podemos ver, aquellos anfitriones que tienen estatus de **super host** tienen 204K reseñas versus solo 165K aquellos que no lo son. 
+
+## Midiendo Puntuación de Reseñas Relativo a Nivel de Anfitrión
+Acabmos de ver que los anfitriones con estatus de **super host** tienen mucho más reseñas. Sin embargo la puntuación es un tema aparte, ya que es factible que tengan más reseñas pero puntajes mucho peor. ¿Quién tiene la puntuación media más alta? Nuevamente, agrupar y encadenar los resultados del juego de datos nos da una solución elegante.
+
+```{r get_mean_score_by_host_status}
+milan %>% 
+  group_by(host_is_superhost) %>%
+  summarise(scores = mean(review_scores_rating))
+```
+Los anfitriones que no tienen nivel de **super host** ganan esta vez, con puntajes promedios de 97 versus 92 de los que si son **super host** y obtuvieron mucho más reseñas. 
+
+## Creando un Vector Ordinal de Categoría
+A diferencia de una variable nominal, que es una variable no numérica sin importancia en el orden, las variables ordinales son no numéricas pero su orden si importa. Vamos a crear un vector categórico llamado `CATEGORÍA`, en función de que, si para la puntuación de las reseñas tiene de 0 a 49, sea `NO ACONSEJABLE`; de 50 a 75 sea `ESTÁNDAR`; y de 76 a 100 sea `TOP`. La mejor forma de hacer esto en R es con la función `cut()` que si bien no es muy conocida, puede ahorrar muchas líneas de código simplificando el trabajo varios ordenes de magnitud. 
+
+```{r create_categoria_vector}
+milan$categoria <- cut(milan$review_scores_rating, breaks = c(0,49,75,+Inf), labels = c("NO ACONSEJABLE", "ESTÁNDAR", "TOP"))
+```
+
+## Frecuencia de la Variable `categoria` 
+Hagamos una visualización completa de la frecuencia de la variable `categoría` que acabamos de generar.
+
+```{r graph_categoria}
+ggplot(data = milan, mapping = aes(x = categoria)) + geom_bar()
+
+```
+
+A primera vista podemos pensar que nos hemos equivocado con la aplicación de la función `cut` en el ejercicio anterior, pero solo tenemos que revisar la distribución de puntajes para verificar que la distribución está sesgada a la derecha.
+
+```{r graph_scores}
+qplot(data = milan, x = review_scores_rating, geom = "histogram")
+```
+
+## Histograma del Precio Diario
+Busquemos obtener el histograma del precio por día. 
+
+```{r histogram_daily_price}
+ggplot(data = milan, mapping = aes(x = daily_price)) + geom_histogram()
+```
+
+Se nota que varios puntos extremos arruinan la visualización. Solo por curiosidad, reduzcamos los datos a valores menor a $200 la noche.
+
+```{r}
+ggplot(data = subset(milan, daily_price < 200), mapping = aes(x = daily_price)) + geom_histogram()
+```
+
+## Relación Potencial entre Variables
+¿Existirá alguna relación entre los dormitorios y los baños de las diferentes ofertas en AirBnB Milán? Hagamos el análisis incluyendo la línea de tendencia. 
+
+```{r trendline_habitaciones}
+p <- ggplot(data = milan, mapping = aes(x = bedrooms, y = bathrooms)) + geom_point() + geom_smooth(method = "lm", show.legend = TRUE) + labs(title = "Relación Entre Dormitorios y Baños", subtitle = "Airbnb Milán, Italia", caption = "Data: Kaggle")
+
+# Código para centrar títulos https://www.datanovia.com/en/blog/how-to-add-title-to-a-ggplot/
+p + theme(
+  plot.title = element_text(hjust = 0.5, color = "blue", size = 14, face = "bold"),
+  plot.subtitle = element_text(hjust = 0.5)
+)
+
+```
+
+Hay una clara relación positiva y directa entre el número de dormitorios y el número de baños, determinada por la recta de tendencia azul en el gráfico. 
+
+## Distribución de Reseñas en Función de Verificación
+Para la siguiente tarea, buscaremos visualizar un histograma del número de reseñas en función de si es un usuario verificado o no. 
+
+```{r hist_reviews_by_verification}
+ggplot(data = milan, mapping = aes(x = review_scores_rating)) + geom_histogram() + facet_wrap(~host_identity_verified) +
+  labs(title = "Distribución de Reseñas en Función de Anfitrión Verificado o No")
+
+```
+
+Podemos resumir que las reseñas siguen un patrón muy similar de puntajes, más allá de si el anfitrión está verificado o no. 
+
+## Distribución Múltiple del Depósito de Seguridad
+El último punto a resolver nos pide mostrar un histograma por cada valor de `CATEGORÍA` en el que se enseñe la cuantía del depósito de seguridad en función de si el anfitrión es super host o no. Este problema es interesante ya que nos obliga a construir las vistas de adentro hacia afuera. A pesar que puede resultar un poco complicado de entender cómo aplicar el código, este problema se resuelve (como muchas otras cosas en **R**) utilizando el operando tilde, de forma que las vistas vayan en función de la categoría supeditada a la verificación del anfitrión, lo que se escribe mucho mas sucinto en código como `facet_wrap(categoria ~ host_identity_verified)`.
+
+```{r}
+ggplot(data = milan, mapping = aes(x = security_deposit)) + geom_histogram() + facet_wrap(categoria ~host_identity_verified, ncol = 2)
+```
+
+
