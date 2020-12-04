@@ -1,0 +1,147 @@
+---
+title: "Temporal"
+author: "Ariel E. Meilij"
+date: "12/1/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# El Problema
+El caso de negocio a usar en este caso práctico es el dataset Bank marketing[1]. Este dataset es uno de los publicados por  el Banco de Portugal (ver más datasets disponibles en https://www.bportugal.pt/estatisticasweb).
+
+Los datos están relacionados con las campañas de marketing directo de una institución bancaria portuguesa. Las campañas de marketing se basaron en llamadas telefónicas. A menudo, se necesitó más de un contacto con el mismo cliente para poder vender el depósito a plazo bancario.
+
+El objetivo realizar un primer análisis exploratorio del dataset y perfilar a los clientes que contrataran un depósito a plazo (variable Y).
+
+## Sobre la Fuente de Datos
+Las variables que hay en el dataset son las siguientes:
+
+__Variables relacionadas con los datos del cliente bancario__
+
+1. `age`: edad del cliente.
+
+2. `job`: tipo de trabajo del cliente.
+
+3. `marital`: estado civil del cliente; divorciado significa divorciado o viudo.
+
+4. `education`: educación del cliente.
+
+5. `default`: el cliente ha fallado previamente.
+
+6. `housing`: el cliente tiene un préstamo de vivienda.
+
+7. `loan`: el cliente tiene un préstamo personal.
+
+__Variables relacionadas con el último contacto de la campaña de marketing actual__
+
+8. `contact`: tipo de comunicación de contacto (teléfono o celular).
+
+9. `month`: último mes de contacto del año.
+
+10. `day_of_week`: último día de contacto de la semana.
+
+11. `duration`: duración del último contacto en segundos. Si la duración es “0s”, nunca se contacta a un cliente para que se registre para una cuenta de depósito a plazo.
+
+12. `pdays`: número de días que pasaron después de que el cliente fue contactado por última vez desde una campaña anterior (valor numérico; 999 significa que el cliente no fue contactado previamente).
+
+13. `previous`: número de contactos realizados antes de esta campaña y para este cliente (valor numérico).
+
+14. `poutcome`: resultado de la campaña de marketing anterior (valor categórico: fracaso, inexistente, éxito).
+
+__Atributos del contexto social y económico__
+
+15. `emp.var.rate`: tasa de variación del empleo. Indicador trimestral (valor numérico).
+
+16. `cons.price.idx`: índice de precios al consumidor. Indicador mensual (valor numérico).
+
+17. `cons.conf.idx`: índice de confianza del consumidor. Indicador mensual (valor numérico).
+
+18. `euribor3m`: tasa euribor a tres meses. Indicador diario (valor numérico).
+
+19. `nr.employed`: número de empleados. Indicador trimestral (valor numérico).
+
+__Variable de salida (objetivo deseado)__
+
+20. `y`: ¿el cliente ha suscrito un depósito a plazo? Binario: sí o no.
+
+# Solución
+El objetivo del problema es hacer un análisis explorativo del juego de datos y poder perfilar quienes adquirieron los servicios del banco en su campaña de productos. 
+
+## Lectura del Archivo
+Comencemos por lo más básico y sencillo de todo, que es la lectura del juego de datos
+
+```{r read_file}
+datos_raw <- read.csv("bank-additional-full.csv", header = TRUE, sep = ";")
+head(datos_raw)
+```
+Para este trabajo no vamos a entrar en la profundidad de analizar todas y cada una de las variables incluidas, sino solo las más interesantes. Vamos a concentrarnos en `age`, `job`, `marital`, `education`, `housing`, `loan`, `cons.price.idx` y `euribor3m`. 
+
+### Sobre Edad de los Prospectos
+Analicemos primero la distribución de edades de los clientes prospectos y como varía si tomaron o no el producto ofrecido. 
+
+```{r view_age_distribution}
+par(mfrow=c(1,3))
+hist(datos_raw$age)
+hist(datos_raw$age[datos_raw$y == "yes"])
+hist(datos_raw$age[datos_raw$y == "no"])
+```
+Las tres distribuciones se parecen bastante entre si. ¿Cómo difieren las edades entre los tres grupos? 
+
+```{r boxplot_age}
+par(mfrow=c(1,3))
+boxplot(datos_raw$age)
+boxplot(datos_raw$age[datos_raw$y == "yes"])
+boxplot(datos_raw$age[datos_raw$y == "no"])
+```
+
+No pareciera existir mucha diferencia entre las distribucines de edad y el hecho que tomaran un producto del banco o no. Ambas poblaciones son muy similares. 
+### Sobre la Profesión de los Prospectos
+¿Pudiera existir alguna relación entre los prospectos y sus labores? ¿Hay alguna profesión que destaca por su interés en conseguir productos de inversión? Veamos el detalle:
+
+```{r jobs_count}
+# Learn about this chart at 
+# https://www.r-graph-gallery.com/218-basic-barplots-with-ggplot2.html
+library(ggplot2)
+ggplot(datos_raw, aes(x = as.factor(job), fill = y)) + geom_bar() + coord_flip()
+```
+Como vemos en la gráfica, en valores absolutos los administradores y técnicos compraron más servicios bancarios, pero eso no explica su valor relativo. Hagamos el análisis consecuente. 
+
+
+```{r jobs_relative}
+# Learn about this chart at 
+# https://www.r-graph-gallery.com/218-basic-barplots-with-ggplot2.html
+ggplot(datos_raw, aes(x = as.factor(job), fill = y)) + geom_bar(position = "fill") + coord_flip()
+```
+Desde el punto de vista relativo, los estudiantes y retirados contratan más servicios bancarios. 
+
+Este problema nos lleva a pensar en las distribuciones marginales. 
+
+```{r tabla_marginal}
+tabla <- table(datos_raw$y, datos_raw$job)
+addmargins(tabla)
+```
+
+```{r tabla_marginal_prop}
+tabla_prop <- prop.table(x = tabla)
+addmargins(tabla_prop)
+```
+
+### La Educación y los Productos Bancarios
+El pensamiento común dice que la gente con más educación debiera gravitar más al ahorro y los productos bancarios. ¿Pero es verdad? Veamos los resultados con una gráfica detallada.
+
+```{r results_by_education}
+library(ggplot2)
+library(viridis)
+library(hrbrthemes)
+
+ggplot(datos_raw, aes(x = education, fill = y)) + 
+  geom_bar() +
+  theme_ipsum() +
+  theme(axis.text = element_text( angle = 90))
+  
+```
+
+
