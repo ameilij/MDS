@@ -1,0 +1,14 @@
+---
+title: "Unidad 4: Inferencia"
+subtitle: "Ejercicios"
+output: hrbrthemes::ipsum_pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  dev = "cairo_pdf")
+```
+
+## PROBLEMA INVESTIGACIÓN
+5,000 restaurantes han comprado fruta de temporada en el último mes a unos grandes almacenes. Se desea tomar una muestra para estimar la compra media. Se quiere que dicha estimación tenga un error máximo de dos kilos y se busca un nivel de confianza del 90 %. Con una muestra piloto de 40 restaurantes, se ha obtenido una media de 168,5 kg con una desviación típica de 20,5 kg. ¿Qué tamaño de muestra se debe escoger?
+
+**SOLUCION**
