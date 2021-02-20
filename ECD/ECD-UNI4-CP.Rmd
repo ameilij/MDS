@@ -1,14 +1,202 @@
 ---
-title: "Unidad 4: Inferencia"
-subtitle: "Ejercicios"
-output: hrbrthemes::ipsum_pdf
+title: "Caso Práctico 4"
+subtitle: "Estadística para Científicos de Datos"
+output: 
+  hrbrthemes::ipsum:
+    toc: true
 ---
+```{r include=FALSE}
+knitr::opts_chunk$set(fig.retina=2)
+```
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,  dev = "cairo_pdf")
+```{r ipsum_setup, message=FALSE, warning=FALSE, cache=FALSE, echo=FALSE}
+library(hrbrthemes)
+library(tidyverse)
+
+update_geom_font_defaults(font_rc)
 ```
 
 ## PROBLEMA INVESTIGACIÓN
 5,000 restaurantes han comprado fruta de temporada en el último mes a unos grandes almacenes. Se desea tomar una muestra para estimar la compra media. Se quiere que dicha estimación tenga un error máximo de dos kilos y se busca un nivel de confianza del 90 %. Con una muestra piloto de 40 restaurantes, se ha obtenido una media de 168,5 kg con una desviación típica de 20,5 kg. ¿Qué tamaño de muestra se debe escoger?
 
-**SOLUCION**
+**Solución**
+Este problema se soluciona con la fórmula siguiente:
+
+\[n = \frac{Nz^{2}\sigma^{2}}{(N-1)E^{2} + z^{2}\sigma^{2}}\]
+
+La solución en código R es:
+
+```{r problema_investigación}
+N <- 5000
+E <- 2
+sigma <- 20.5
+z <- 1.645
+
+n <- ((N * z^2 * sigma^2) / ((N -1) * E^2 + z^2 * sigma^2))
+n
+```
+
+## PROBLEMA TEST A/B
+La empresa XYZ es un sitio de comercio electrónico mundial con versiones localizadas del sitio. Un científico de datos en XYZ notó que los usuarios con sede en España tienen una tasa de conversión mucho más alta que cualquier otro país de habla hispana.
+
+Se pide:
+
+a. Confirmar que la prueba es realmente negativa. Es decir: parece que la versión anterior del sitio con una sola traducción en España y Latinoamérica funciona mejor que la actual.
+b. Explicar por qué eso podría estar sucediendo. ¿Suficiencia muestral? ¿Sesgo de selección?
+
+**Solución**
+Este es un problema un tanto complicado, ya que involucra dos tablas (un archivo maestro y la prueba en sí) adicionalmente a una conversión que es 0 o 1 (es un entero). Aquellos registros que pertenecen a la base tienen `test = 0`, y los que fueron parte del test tiene `test = 1`. Lo primero es reducir la información a una granularidad donde la podamos utilizar para el análisis de ciencia de datos. 
+
+```{r problema_ab_testing}
+# Limpiar un poco estos lotes de datos
+user <- as.data.frame(read.csv("user_table.csv"))
+test <- as.data.frame(read.csv("test_table.csv"))
+lote <- merge.data.frame(test, user, by.x = "user_id", by.y = "user_id")
+
+control <- lote[lote$test == 0, ]
+abtest  <- lote[lote$test == 1, ]
+```
+
+Veamos un poco los resultados de conversion del grupo control.
+
+```{r create_control_group}
+library(gt)
+control_group = as.data.frame.matrix(addmargins(table(control$country, control$conversion)))
+control_group[, 4] = round(control_group[,2] / control_group[, 3] * 100, 1)
+colnames(control_group) <- c("0", "1", "Suma", "Conversion")
+gt(control_group, rownames_to_stub = TRUE)
+```
+
+Ahora veamos las diferencias con el grupo de test.
+
+```{r create_test_group}
+library(gt)
+abtest_group = as.data.frame.matrix(addmargins(table(abtest$country, abtest$conversion)))
+abtest_group[, 4] = round(abtest_group[,2] / abtest_group[, 3] * 100, 1)
+colnames(abtest_group) <- c("0", "1", "Suma", "Conversion")
+gt(abtest_group, rownames_to_stub = TRUE)
+```
+
+Curiosamente, no hay ninguna prueba de existencia de clicks en España en el grupo de test del nuevo sitio. Hagamos el test de A/B para ver si hubo algún cambio. 
+
+```{r codigo_ab_test}
+# Get results from vectors
+count_control <- sum(control_group[1:17, 2])
+size_control <- sum(control_group[1:17, 3])
+count_abtest <- sum(abtest_group[1:17, 2])
+size_abtest <- sum(abtest_group[1:17, 3])
+
+# Compute probability and standard error
+p1 <- count_control / size_control
+p2 <- count_abtest / size_abtest
+se <- sqrt(p1 * (1 - p1) / size_control + p2 * (1 - p2) / size_abtest)
+
+# 95% confidence interval
+conf_level <- 0.95
+zscore <- qnorm(conf_level + (1 - conf_level) / 2)
+conf_int <- abs(p2 - p1) + c(-1, 1) * zscore * se
+conf_int
+```
+
+Por las dudas vamos a validar con la fórmula estándar. 
+
+```{r abtest_prop_test}
+resultado <- prop.test(c(count_control, count_abtest), c(size_control, size_abtest))
+resultado
+```
+
+Una última revisión con el paquete `abpackage`
+
+> An R package for AB testing leveraging pre-period information
+
+```{r test_abpackage}
+library(abpackage)
+
+trmt.pre.data <- abtest_group[1:17, 2]
+ctrl.pre.data <- control_group[1:17, 2]
+trmt.post.data <- abtest_group[1:17, 3]
+ctrl.post.data <- control_group[1:17, 3]
+n = length(control_group[1:17,3])
+
+data <- data.frame(pre = c(ctrl.pre.data, trmt.pre.data),
+                   post = c(ctrl.post.data, trmt.post.data),
+                   condition = factor(c(rep("control", n),
+                                        rep("treatment", n))),
+                   metric = rep("my metric", 2*n))
+
+ggplot(data, aes(pre, post, color = condition)) + geom_point()
+```
+```{r apply_abtest}
+PrePost(dplyr::select(data, -pre))
+```
+
+Con el `abpackage` no obtenemos resultados claros. Obviamente los resultados son pobres cuando hacemos el cálculo a mano. La falta de conversión en los datos de España causa un sesgo muy grande, ya que la muestra no está estratificada.
+
+## PROBLEMA DE ENCUESTAS
+Suponiendo que la empresa está en un proyecto de creación de un producto, una de las tareas del proyecto es realizar una encuesta de opinión sobre el grado de aceptación que tendría este nuevo producto en el mercado. El coste de la encuesta depende del número n de entrevistas que se realicen y el error de las proporciones de las contestaciones disminuye cuando n aumenta. Como no se sabe cuánto dinero está dispuesta a invertir la empresa, tabular los tamaños muestrales para los errores 5 %, 3 %, 2 %, 1 %, y para niveles de confianza 0,95 y 0,99, suponiendo el peor caso.
+
+Añadir un comentario para que el equipo de dirección del proyecto, en el que hay componentes ignorantes en materia de encuestas, para que vean cómo quedarían redactados los datos técnicos de la encuesta y puedan decidir el tamaño de muestra leyendo el informe.
+
+**Solución**
+Aquí debemos calcular n entrevistas con intervalo de confianza y error conocido, pero todos los demás datos sin conocer. 
+
+
+## PROBLEMA DE AUDIENCIA DE LA TELEVISIÓN
+Se han medido los siguientes valores (en miles de personas) para la audiencia de un programa de televisión en distintos días (supuestos igualmente distribuidos e independientes):
+
+521, 100, 593, 535, 488, 317, 206, 639, 866, 624
+
+Se pide construir un intervalo de confianza del 90% para la audiencia poblacional media y otro para la varianza poblacional, bajo la hipótesis de que la población de audiencias sigue una ley normal.
+
+**Solución**
+La solución es la siguiente.
+
+```{r create_conf_int}
+dat = c(521, 100, 593, 535, 488, 317, 206, 639, 866, 624)
+t.test(dat, conf.level = 0.90)$conf.int
+```
+
+El intervalo de confianza de la varianza es muy sensitivo a la distribución no normal de la data (Bonnet, 2006). La fórmula para el intervalo de confianza de la varianza es la siguiente:
+
+`VarCI(x, method = c("classic", "bonett", "norm", "basic", "stud", "perc", "bca"),
+      conf.level = 0.95, sides = c("two.sided", "left", "right"),
+      na.rm = FALSE, R = 999)`
+      
+```{r get_conf_int_variance}
+library(DescTools)
+VarCI(dat, conf.level = 0.90)
+```
+
+## CAMPAÑA DE MARKETING
+Una empresa dedicada a la fabricación de cervezas realizó una campaña de marketing a dos muestras independientes de clientes, en Madrid y Barcelona, para vender una nueva cerveza con sabor de cereza. La campaña de Madrid tuvo un tamaño n_1 = 500 y 200 clientes compraron, mientras que en Barcelona se realizó la campaña a n_2 = 750 y se obtuvo un resultado de 210 ventas.
+
+Se pide construir una matriz dos por dos que contenga en filas los valores de Madrid y Barcelona y por columnas las respuestas sí y no. Con la función `prop.test` contrastar si las proporciones por ciudades son iguales o distintas. Resolver el contraste con el p-valor y obtener e interpretar un intervalo de confianza del 95 para la diferencia de proporciones.
+
+```{r}
+info <- data.frame("SI" = c(200, 210), "NO" = c(300, 750-210))
+rownames(info) = c("Madrid", "Barcelona")
+info
+
+prop.test(x = info$SI, n = info$SI + info$NO, conf.level = 0.95)
+```
+
+## AUDITOR DE BOMBILLAS
+
+Hay que verificar la información de las etiquetas de las fábricas de bombillas. En este caso, se está analizando a una empresa que afirma que la duración media de las bombillas que fabrica es de más de 10 000 horas. En una muestra de 30 bombillas, se encontró que sólo duran 9 900 horas en promedio. Suponiendo que la desviación estándar de la población es de 120 horas, con una significación estadística del 0,05, ¿se puede rechazar la afirmación del fabricante? ¿Se daría por buena?
+
+**Solución**
+Con los datos que tenemos podemos verificar el intervalo de confianza al 95%. 
+
+```{r}
+mu = 9900
+sigma = 120
+n = 30
+z = 1.96
+
+limite_superior <- mu + (z * sigma/sqrt(n))
+limite_inferior <- mu - (z * sigma/sqrt(n))
+
+print(paste("El intervalo de confianza del 95% es: ", ceiling(limite_inferior), " - ", ceiling(limite_superior)))
+
+```
+
