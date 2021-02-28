@@ -1,8 +1,10 @@
 ---
-title: "Temporal"
+title: "Estadística para Científicos de Datos"
 author: "Ariel E. Meilij"
 date: "12/1/2020"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}

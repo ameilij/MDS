@@ -1,0 +1,38 @@
+---
+title: "A/B Testing"
+subtitle: "Estadística para Científicos de Datos"
+output: hrbrthemes::ipsum_pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  dev = "cairo_pdf")
+```
+
+**Ejemplo:** hay un 10 % de probabilidades de que la gente que vio el botón lo pulse. Con la modificación propuesta, se espera un cambio del 2 % en la tasa de clics. La potencia que se le asigna al test A/B es del 80 % y se exige que sea estadísticamente significativo al 0,05.
+
+```{r}
+# parameters
+baseline <- 0.1
+delta <- 0.02
+power <- 0.8
+sig_level <- 0.05
+
+result <- power.prop.test(p1 = baseline, p2 = baseline + delta, power = power, sig.level = sig_level, alternative = "two.sided")
+
+result
+```
+
+Se necesita una muestra de al menos 3841 observaciones para cada escenario para detectar si efectivamente el cambio producido es del 2 %. Tómese el supuesto de que se ha lanzado el test y se ha obtenido el número total de muestras y el número total de aciertos para cada uno de los grupos. Dadas estas variables, pueden ser utilizadas para calcular si el cambio ha sido debido a la implementación del escenario o no.
+
+```{r}
+count_control <- 974
+sizes_control <- 10072
+count_experiment <- 1242
+sizes_experiment <- 9886
+
+result <- prop.test(c(count_control, count_experiment), c(sizes_control, sizes_experiment))
+
+result
+```
+
+El cambio debería ser mayor que el mínimo cambio detectable, es decir: en nuestro caso, se ha definido que el cambio debe ser del 2 %. En los resultados de arriba se puede comprobar que el intervalo de confianza se encuentra por encima de ese 2 % (está entre 2,02 % y 3,7 %), por lo que, definitivamente, y según este pequeño test realizado, sí se lanzaría el cambio de botón.

@@ -1,0 +1,158 @@
+---
+title: "Caso Practico Unidad 5 Regresión Lineal"
+subtitle: "Estadística para Científicos de Datos"
+output: hrbrthemes::ipsum_pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  dev = "cairo_pdf")
+```
+
+## I. PROBLEMA
+El departamento de asistencial de una aseguradora solicita al actuario que indique una fórmula que permita la predicción de los gastos médicos mediante el BMI (el índice de masa corporal, que es una razón matemática que asocia la masa y la talla de un individuo) del asegurado para poder realizar el business case de negocio.
+
+Para realizar el problema, se usará el siguiente dataset:
+
+```
+library(tidyverse)
+
+datos <- read_csv("insurance.csv")
+```
+
+Se pide:
+* Representación gráfica de las observaciones.
+* Cálculo del modelo de regresión lineal simple.
+
+```{r message = FALSE}
+library(hrbrthemes)
+library(ggplot2)
+library(Cairo)
+library(extrafont)
+
+extrafont::loadfonts()
+
+datos <- read.csv("insurance.csv")
+qplot(datos$bmi, datos$charges)
+
+fit <- lm(charges ~ bmi, data = datos)
+summary(fit)
+
+# El siguiente codigo es de https://stackoverflow.com/questions/17432142/plot-the-observed-and-fitted-values-from-a-linear-regression-using-xyplot-from
+require("lattice")
+res <- stack(data.frame(Observed = datos$charges, Predicted = fitted(fit)))
+res <- cbind(res, x = rep(datos$bmi, 2))
+xyplot(values ~ x, data = res, group = ind, auto.key = TRUE)
+```
+
+Podemos probar el valor de predicción de nuestro modelo de la siguiente forma:
+
+```{r}
+head(datos)
+predict(fit, newdata = datos[1:5, ])
+
+```
+
+## II. PROBLEMA
+Regresión lineal con una variable independiente categórica de dos categorías:
+
+Para hacer este ejercicio, se usará la base de datos Salaries de la librería carData.
+
+```
+library(carData)
+```
+
+Se da el caso de un departamento de recursos humanos de una consultora especializada en _people analitycs_ que trabaja para una empresa dedicada a la gestión de colegios privados. Se solicita la predicción del salario de los profesores durante nueve meses en función de las variables que se darán a continuación, para analizar una investigación que evite la presencia de posibles problemas de discriminación.
+
+Se tratará de responder a las siguientes preguntas:
+* ¿Influye el sexo del profesor en el salario?
+* ¿Influye el rango del profesor en el salario? 
+* Analizando toda la información disponible, ¿cuáles son las variables más influyentes?
+
+**Solución**
+Vamos a revisar las relaciones de los profesores, su sueldos, y su condición de rango y género. Comencemos por ver si los profesores hombre ganan más que sus pares mujeres. 
+
+```{r check_gender}
+library(carData)
+fit <- lm(salary ~  sex, data = Salaries)
+summary(fit)
+```
+
+Por lo que podemos ver, el hecho de ser hombre signfica un aumento de 14,088 más que las mujeres. Sigamos con la revisión de rango.
+
+```{r check_rank}
+summary(Salaries$rank)
+
+fit <- lm(salary~rank, data = Salaries)
+summary(fit)
+
+```
+
+Nuevamente, vemos que el salario base es 80,776. Aquellos con un rango de profesor asociado tienen un salario 13,100 más alto, y los que llegan al puesto de profesor 45,996 más alto. Todo esto se visualiza simplemente con un _boxplot_.
+
+```{r boxplot_salary}
+library(ggplot2)
+ggplot(aes(x=rank, y=salary, fill=sex), data=Salaries) + geom_boxplot()
+```
+
+## PROBLEMA 3
+Utilizar el dataset precargado en R de auto para los siguientes ejercicios:
+
+Para cargar el dataset, se utilizará el dataset Auto que esta precargado en el paquete ISLR.
+
+```
+library(ISLR)
+head(Auto)
+```
+
+Este conjunto de datos fue tomado de la biblioteca StatLib, que se mantiene en la Universidad Carnegie Mellon. El conjunto de datos se utilizó en la Exposición de la Asociación Americana de Estadística de 1983.Los datos originales contenían 408 observaciones, pero se eliminaron 16 observaciones con valores faltantes.
+
+Detallar los siguientes apartados:
+* Exploración de datos iniciales.
+* Ajuste del modelo con todas las variables.
+* Herramientas para comprobar las asunciones del modelo.
+* Selección de las variables mediante el método backward.
+
+**Solución**
+Primero hagamos la selección del modelo de ajuste con todas las variables (es un modelo pequeño, no lleva sino segundos).
+
+```{r}
+library(ISLR)
+fit <- lm(mpg ~ cylinders * displacement + horsepower + acceleration + year + origin + name, data = Auto)
+summary(fit)
+```
+
+Ahora que tenemos el modelo completo, usemos StepAIC para reducirlo.
+
+```{r}
+step(object = fit, direction = "backward", trace = 1)
+```
+
+Realmente es demasiado, no queremos un modelo tan complejo cuando uno mucho más general sirve (básicamente esto de utilizar los nombres de los carros es potencial para **overfit** en la fórmula). Vamos a reducir el modelo con una penalidad en la fórmula con el valor `k=5` que limite lo que estamos haciendo. 
+
+```{r}
+step(object = fit, direction = "backward", trace = 1, k=5)
+```
+
+Podemos ver que el valor del AIC subió de 664,27 a 981,99 pero tenemos una fórmula más clara. Hagamos un gráfico para poder revisar nuestro ajuste de la regresión. 
+
+```{r check_fit}
+regresion <- step(object = fit, direction = "backward", k=5)
+prediccion <- regresion$fitted.values
+residuos <- regresion$residuals
+cook <- cooks.distance(regresion)
+
+plot(regresion)
+plot(prediccion)
+plot(cook)
+plot(residuos)
+```
+
+Por último revisemos la homocedasticidad de los residuos y que no tengamos heterocedasticidad. 
+
+```{r}
+library(lmtest)
+bptest(regresion)
+shapiro.test(residuos)
+```
+
+
